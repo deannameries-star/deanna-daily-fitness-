@@ -1,5 +1,6 @@
 const days=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-const now=new Date(), todayName=days[now.getDay()];
+const now=new Date();
+let selectedDate=new Date(now);
 const STORAGE_KEY="builtDailyV7";
 const SYNC_URL="https://script.google.com/macros/s/AKfycbyVY3AAUJeITgisNRYD0FKb-XXExdQ1IOkEyGk1U-VLNgaL1kuVmfzRX6cgUdyNc3Vc/exec";
 const PROGRAM_START=new Date(2026,7,1);
@@ -7,7 +8,9 @@ const TRACKED_EXERCISES=new Set(["Incline Bridges (Smith Machine or Barbell)","E
 const SHEET_EXERCISE_NAMES={"Incline Bridges (Smith Machine or Barbell)":"incline bridges (smith machine or barbell)","Elevated Reverse Lunges (Smith Machine)":"elevated reverse lunges (smith machine)","DB Lateral Raises":"DB lateral raises","Shoulder Press":"shoulder press","Wide Grip Lat Pulldown":"wide grip lat pull down","High Row Machine":"high row machine","Abductors":"abductors","Barbell KAS Bridge / Hip Thrust":"barbell KAS bridge/hip thrust"};
 const TRAINING_WEEK_COLUMNS={1:[6,7],2:[8,9],3:[10,12],4:[13,14],5:[15,16],6:[17,18],7:[19,20],8:[21,22],10:[23,24],11:[25,26],12:[27,28],14:[29,30],15:[31,32],16:[33,34],17:[35,36],18:[37,38],19:[39,40],20:[41,42]};
 let state=JSON.parse(localStorage.getItem(STORAGE_KEY)||"{}");
-$("#todayDate").textContent=now.toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"});
+function selectedDayName(){return days[selectedDate.getDay()]}
+function selectedKey(){return localKey(selectedDate)}
+function refreshHeaderDate(){$("#todayDate").textContent=selectedDate.toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"})}
 
 function save(){
   state.meta=state.meta||{};
@@ -18,7 +21,7 @@ function localKey(d=new Date()){
   const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,"0"),day=String(d.getDate()).padStart(2,"0");
   return `${y}-${m}-${day}`;
 }
-function key(){return localKey(now)}
+function key(){return selectedKey()}
 function exKey(day,i,dateKey=key()){return `${dateKey}|${day}|${i}`}
 function getEx(day,i,dateKey=key()){
   state.logs=state.logs||{};
@@ -38,7 +41,7 @@ function openDemo(day,i){
   if(e.video){
     $("#demoContent").innerHTML=`<div class="videoWrap"><video src="${e.video}" controls playsinline loop preload="metadata"></video></div><div class="credit">${e.videoLabel||"Movement example"} · Specialized variations may differ from the exact exercise in your program.</div>`;
   } else {
-    $("#demoContent").innerHTML=`<div class="noDemo"><b>No in-app video yet for this one.</b><br><br>${e.notes||"Use your coach's form notes for this movement."}</div>`;
+    $("#demoContent").innerHTML=`<div class="noDemo"><b>Exact demo coming soon.</b><br><br>I removed the generic placeholder so you are not shown the wrong movement.<br><br><b>Form cues:</b><br>${e.notes||"Follow your programmed setup and controlled form for this movement."}</div>`;
   }
   $("#demoModal").classList.add("on");$("#demoModal").setAttribute("aria-hidden","false");
 }
@@ -64,40 +67,38 @@ async function postSync(payload){
   }catch(err){state.meta=state.meta||{};state.meta.lastSyncError=String(err);save();return false;}
 }
 async function syncDailyProgress(){
-  const p=ensureDay(),week=currentProgramWeek();
-  return postSync({type:"daily_progress",day:todayName,date:key(),weekColumn:week+1,weight:p.weight||"",steps:p.steps||"",cardio:p.cardio||"",water:p.water||"",notes:p.notes||""});
+  const p=ensureDay(selectedKey()),week=currentProgramWeek(selectedDate),dayName=selectedDayName();
+  return postSync({type:"daily_progress",day:dayName,date:selectedKey(),weekColumn:week+1,weight:p.weight||"",steps:p.steps||"",cardio:p.cardio||"",water:p.water||"",notes:p.notes||""});
 }
-async function syncTrackedExercise(dayName,i){
+async function syncTrackedExercise(dayName,i,dateObj=selectedDate){
   const e=DATA.workouts[dayName].exercises[i];
   if(!TRACKED_EXERCISES.has(e.name))return true;
-  const x=getEx(dayName,i),last=(x.sets||[])[e.sets-1]||{};
+  const dateKey=localKey(dateObj),x=getEx(dayName,i,dateKey),last=(x.sets||[])[e.sets-1]||{};
   if(!last.weight&&!last.reps)return true;
-  const week=currentProgramWeek(),cols=TRAINING_WEEK_COLUMNS[week];
+  const week=currentProgramWeek(dateObj),cols=TRAINING_WEEK_COLUMNS[week];
   if(!cols)return false;
-  return postSync({type:"training",date:key(),week:week,exercise:SHEET_EXERCISE_NAMES[e.name]||e.name,weight:last.weight||"",reps:last.reps||"",weightColumn:cols[0],repsColumn:cols[1]});
+  return postSync({type:"training",date:dateKey,week:week,exercise:SHEET_EXERCISE_NAMES[e.name]||e.name,weight:last.weight||"",reps:last.reps||"",weightColumn:cols[0],repsColumn:cols[1]});
 }
 
+function changeSelectedDate(delta){selectedDate.setDate(selectedDate.getDate()+delta);refreshHeaderDate();renderToday()}
 function renderToday(){
-  const w=DATA.workouts[todayName],items=w.exercises;let total=0,done=0;
-  items.forEach((e,i)=>{total+=e.sets;done+=(getEx(todayName,i).sets||[]).filter(x=>x&&x.done).length});
-  let h=`<div class="card hero"><div class="eyebrow">${todayName}</div><h2>${w.title}</h2><div class="muted">${items.length?`${done} of ${total} sets complete`:"Recovery day"}</div>${items.length?`<div class="progress"><div class="bar" style="width:${Math.round(done/total*100)}%"></div></div>`:""}</div>`;
-  if(!items.length)h+=`<div class="card rest"><div class="emoji">☁️</div><h2>Rest + recover</h2><div class="muted">Hydrate, hit your meals, get your steps and come back ready.</div></div>`;
-  items.forEach((e,i)=>{
-    const x=getEx(todayName,i);
-    h+=`<section class="card exercise"><div class="exerciseHead"><div class="eyebrow">Exercise ${i+1}</div><h3>${e.name}</h3><div class="protocol">${e.protocol}</div>${e.notes?`<div class="notes">${e.notes}</div>`:""}</div><div class="demoStrip"><span>${e.video?"Demo stays inside the app":"Form notes available"}</span><button class="demoBtn" data-demo="${todayName}|${i}">${e.video?"▶ Demo":"View cues"}</button></div><div class="sets">`;
-    for(let s=0;s<e.sets;s++){const v=x.sets[s]||{};h+=`<div class="setrow"><div class="setnum">SET ${s+1}</div><input inputmode="decimal" placeholder="Weight" value="${v.weight||""}" data-day="${todayName}" data-i="${i}" data-s="${s}" data-f="weight"><input placeholder="Reps" value="${v.reps||""}" data-day="${todayName}" data-i="${i}" data-s="${s}" data-f="reps"><button class="check ${v.done?"on":""}" data-done="${todayName}|${i}|${s}">✓</button></div>`}
-    h+=`</div></section>`;
-  });
+  const dayName=selectedDayName(),dateKey=selectedKey(),w=DATA.workouts[dayName],items=w.exercises;let total=0,done=0;
+  items.forEach((e,i)=>{total+=e.sets;done+=(getEx(dayName,i,dateKey).sets||[]).filter(x=>x&&x.done).length});
+  const isToday=dateKey===localKey(now);
+  let h=`<div class="dateNav"><button id="prevDay">‹</button><input id="workoutDate" type="date" value="${dateKey}"><button id="nextDay">›</button></div><div class="card hero"><div class="eyebrow">${dayName}${isToday?" • TODAY":""}</div><h2>${w.title}</h2><div class="muted">${selectedDate.toLocaleDateString(undefined,{month:"long",day:"numeric",year:"numeric"})}</div><div class="muted">${items.length?`${done} of ${total} sets complete`:"Recovery day"}</div>${items.length?`<div class="progress"><div class="bar" style="width:${Math.round(done/total*100)}%"></div></div>`:""}</div>`;
+  if(!items.length)h+=`<div class="card rest"><div class="emoji">☁️</div><h2>Rest + recover</h2><div class="muted">You can still log weight, steps, cardio, water and notes for this date in Progress.</div></div>`;
+  items.forEach((e,i)=>{const x=getEx(dayName,i,dateKey);h+=`<section class="card exercise"><div class="exerciseHead"><div class="eyebrow">Exercise ${i+1}</div><h3>${e.name}</h3><div class="protocol">${e.protocol}</div>${e.notes?`<div class="notes">${e.notes}</div>`:""}</div><div class="demoStrip"><span>${e.video?"Accurate demo inside the app":"Exact demo coming soon · form cues available"}</span><button class="demoBtn" data-demo="${dayName}|${i}">${e.video?"▶ Accurate Demo":"View Form Cues"}</button></div><div class="sets">`;for(let s=0;s<e.sets;s++){const v=x.sets[s]||{};h+=`<div class="setrow"><div class="setnum">SET ${s+1}</div><input inputmode="decimal" placeholder="Weight" value="${v.weight||""}" data-day="${dayName}" data-date="${dateKey}" data-i="${i}" data-s="${s}" data-f="weight"><input placeholder="Reps" value="${v.reps||""}" data-day="${dayName}" data-date="${dateKey}" data-i="${i}" data-s="${s}" data-f="reps"><button class="check ${v.done?"on":""}" data-done="${dayName}|${dateKey}|${i}|${s}">✓</button></div>`}h+=`</div></section>`});
   $("#view").innerHTML=h;
+  $("#prevDay").onclick=()=>changeSelectedDate(-1);$("#nextDay").onclick=()=>changeSelectedDate(1);$("#workoutDate").onchange=e=>{selectedDate=new Date(e.target.value+"T12:00:00");refreshHeaderDate();renderToday()};
   document.querySelectorAll("[data-demo]").forEach(b=>b.onclick=()=>{const[d,i]=b.dataset.demo.split("|");openDemo(d,+i)});
-  document.querySelectorAll("input[data-day]").forEach(el=>el.oninput=()=>{let x=getEx(el.dataset.day,+el.dataset.i);x.sets[+el.dataset.s]=x.sets[+el.dataset.s]||{};x.sets[+el.dataset.s][el.dataset.f]=el.value;save()});
-  document.querySelectorAll("[data-done]").forEach(el=>el.onclick=async()=>{const[d,i,s]=el.dataset.done.split("|");let x=getEx(d,+i);x.sets[+s]=x.sets[+s]||{};x.sets[+s].done=!x.sets[+s].done;save();if(x.sets[+s].done&&+s===DATA.workouts[d].exercises[+i].sets-1){await syncTrackedExercise(d,+i)}renderToday()});
+  document.querySelectorAll("input[data-day]").forEach(el=>el.oninput=()=>{let x=getEx(el.dataset.day,+el.dataset.i,el.dataset.date);x.sets[+el.dataset.s]=x.sets[+el.dataset.s]||{};x.sets[+el.dataset.s][el.dataset.f]=el.value;save()});
+  document.querySelectorAll("[data-done]").forEach(el=>el.onclick=async()=>{const[d,dk,i,s]=el.dataset.done.split("|");let x=getEx(d,+i,dk);x.sets[+s]=x.sets[+s]||{};x.sets[+s].done=!x.sets[+s].done;save();if(x.sets[+s].done&&+s===DATA.workouts[d].exercises[+i].sets-1){await syncTrackedExercise(d,+i,new Date(dk+"T12:00:00"))}renderToday()});
 }
+function startOfWeek(d){const x=new Date(d);const diff=(x.getDay()+6)%7;x.setDate(x.getDate()-diff);x.setHours(12,0,0,0);return x}
 function renderWeek(){
-  let h=`<div class="card hero"><div class="eyebrow">Your Week</div><h2>Training split</h2><div class="muted">Wednesday + Sunday are recovery days.</div></div><div class="card">`;
-  ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"].forEach(d=>{const w=DATA.workouts[d];h+=`<div class="weekrow"><div><b>${d}</b><div class="muted">${w.title}</div></div><span class="pill">${w.exercises.length?w.exercises.length+" moves":"REST"}</span></div>`});
-  h+=`</div><div class="card"><div class="eyebrow">Cardio</div><h3>4× LISS per week</h3><div class="muted">30 min · incline 8 · 3.2 mph · target HR 130 bpm</div></div>`;
-  $("#view").innerHTML=h;
+  const mon=startOfWeek(selectedDate);let h=`<div class="card hero"><div class="eyebrow">Your Week</div><h2>Pick any day</h2><div class="muted">Open a previous workout, catch up later, or log a missed day to the date it belongs to.</div></div><div class="card">`;
+  for(let n=0;n<7;n++){const d=new Date(mon);d.setDate(mon.getDate()+n);const dn=days[d.getDay()],w=DATA.workouts[dn],dk=localKey(d),status=workoutStatus(dk,dn);h+=`<button class="weekrow weekPick" data-date="${dk}"><div><b>${dn}</b><div class="muted">${d.toLocaleDateString(undefined,{month:"short",day:"numeric"})} · ${w.title}</div></div><span class="pill">${w.exercises.length?(status.label==="Not logged"?w.exercises.length+" moves":status.label):"REST"}</span></button>`}
+  h+=`</div><div class="card"><div class="eyebrow">Cardio</div><h3>4× LISS per week</h3><div class="muted">30 min · incline 8 · 3.2 mph · target HR 130 bpm</div></div>`;$("#view").innerHTML=h;document.querySelectorAll(".weekPick").forEach(b=>b.onclick=()=>{selectedDate=new Date(b.dataset.date+"T12:00:00");refreshHeaderDate();switchView("today")})
 }
 function renderMeals(){
   let h=`<div class="card hero"><div class="eyebrow">Daily Fuel</div><h2>Meal plan</h2><div class="grid3"><div class="stat"><span>Protein</span><b>148g</b></div><div class="stat"><span>Carbs</span><b>170g</b></div><div class="stat"><span>Fat</span><b>52g</b></div></div></div>`;
@@ -105,11 +106,11 @@ function renderMeals(){
   $("#view").innerHTML=h;
 }
 function renderProgress(){
-  const p=ensureDay();
-  $("#view").innerHTML=`<div class="card hero"><div class="eyebrow">Today</div><h2>Your progress</h2><div class="grid2"><div class="stat"><span>Weight</span><b>${p.weight||"—"}</b></div><div class="stat"><span>Steps</span><b>${p.steps||"—"}</b></div><div class="stat"><span>Cardio</span><b>${p.cardio?p.cardio+" min":"—"}</b></div><div class="stat"><span>Water</span><b>${p.water||"—"}</b></div></div></div>
-  <div class="card"><input class="field" id="weight" inputmode="decimal" placeholder="Fasted weight" value="${p.weight||""}"><div class="spacer8"></div><input class="field" id="steps" inputmode="numeric" placeholder="Steps" value="${p.steps||""}"><div class="spacer8"></div><input class="field" id="cardio" inputmode="numeric" placeholder="Cardio minutes" value="${p.cardio||""}"><div class="spacer8"></div><input class="field" id="water" placeholder="Water" value="${p.water||""}"><div class="spacer8"></div><textarea class="field" id="notes" placeholder="Sleep, energy, cycle, digestion, pumps, anything to remember…">${p.notes||""}</textarea><div class="spacer8"></div><button class="primary" id="saveP">Save + Sync Today</button></div>`;
-  ["weight","steps","cardio","water","notes"].forEach(id=>$("#"+id).oninput=()=>{const q=ensureDay();q[id]=$("#"+id).value;save()});
-  $("#saveP").onclick=async()=>{save();$("#saveP").textContent="Syncing…";const ok=await syncDailyProgress();$("#saveP").textContent=ok?"Saved + Synced ✓":"Saved on phone — sync retry needed";setTimeout(renderProgress,1300)};
+  const dk=selectedKey(),dayName=selectedDayName(),p=ensureDay(dk);
+  $("#view").innerHTML=`<div class="dateNav"><button id="prevP">‹</button><input id="progressDate" type="date" value="${dk}"><button id="nextP">›</button></div><div class="card hero"><div class="eyebrow">${dayName}</div><h2>Your progress</h2><div class="muted">${selectedDate.toLocaleDateString(undefined,{month:"long",day:"numeric",year:"numeric"})}</div><div class="grid2"><div class="stat"><span>Weight</span><b>${p.weight||"—"}</b></div><div class="stat"><span>Steps</span><b>${p.steps||"—"}</b></div><div class="stat"><span>Cardio</span><b>${p.cardio?p.cardio+" min":"—"}</b></div><div class="stat"><span>Water</span><b>${p.water||"—"}</b></div></div></div><div class="card"><input class="field" id="weight" inputmode="decimal" placeholder="Fasted weight" value="${p.weight||""}"><div class="spacer8"></div><input class="field" id="steps" inputmode="numeric" placeholder="Steps" value="${p.steps||""}"><div class="spacer8"></div><input class="field" id="cardio" inputmode="numeric" placeholder="Cardio minutes" value="${p.cardio||""}"><div class="spacer8"></div><input class="field" id="water" placeholder="Water" value="${p.water||""}"><div class="spacer8"></div><textarea class="field" id="notes" placeholder="Sleep, energy, cycle, digestion, pumps, anything to remember…">${p.notes||""}</textarea><div class="spacer8"></div><button class="primary" id="saveP">Save + Sync ${dayName}</button></div>`;
+  ["weight","steps","cardio","water","notes"].forEach(id=>$("#"+id).oninput=()=>{const q=ensureDay(dk);q[id]=$("#"+id).value;save()});
+  $("#prevP").onclick=()=>{selectedDate.setDate(selectedDate.getDate()-1);refreshHeaderDate();renderProgress()};$("#nextP").onclick=()=>{selectedDate.setDate(selectedDate.getDate()+1);refreshHeaderDate();renderProgress()};$("#progressDate").onchange=e=>{selectedDate=new Date(e.target.value+"T12:00:00");refreshHeaderDate();renderProgress()};
+  $("#saveP").onclick=async()=>{save();$("#saveP").textContent="Syncing…";const ok=await syncDailyProgress();$("#saveP").textContent=ok?`Saved + Synced ${dayName} ✓`:"Saved on phone — sync retry needed";setTimeout(renderProgress,1300)};
 }
 function lastTuesdayRange(){
   const end=new Date(now);
@@ -145,4 +146,5 @@ function switchView(v){
   ({today:renderToday,week:renderWeek,meals:renderMeals,progress:renderProgress,checkin:renderCheckin}[v])();
 }
 document.querySelectorAll(".nav button").forEach(b=>b.onclick=()=>switchView(b.dataset.view));
+refreshHeaderDate();
 renderToday();
