@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#2f7cf6">
+<title>BUILT DAILY</title>
+<link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+  <header class="header"><div><div class="brand">BUILT DAILY</div><h1>Move • Build • Become</h1></div><div class="date" id="todayDate"></div></header>
+  <nav class="nav"><button class="active" data-view="today">Today</button><button data-view="week">Week</button><button data-view="meals">Meals</button><button data-view="progress">Progress</button><button data-view="checkin">Check-In</button></nav>
+  <main id="view"></main>
+</div>
+
+<div class="modal" id="demoModal" aria-hidden="true">
+  <div class="sheet">
+    <div class="sheetTop"><div><div class="eyebrow">Movement Demo</div><h3 id="demoTitle">Exercise</h3></div><button class="close" id="closeDemo">×</button></div>
+    <div id="demoContent"></div>
+  </div>
+</div>
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
