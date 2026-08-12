@@ -35,14 +35,78 @@ function ensureDay(dateKey=key()){
   return state.progress[dateKey];
 }
 
+
+const DEMO_GUIDES = {
+  "Weighted Step Downs": {equipment:"Step + dumbbell/bodyweight", start:"Stand tall on the step with one foot near the edge.", finish:"Lower the free heel toward the floor by bending the working knee, then drive back up.", cue:"Keep the working knee tracking over the toes. Move slowly and keep the pelvis level.", type:"stepdown"},
+  "Incline Bridges (Smith Machine or Barbell)": {equipment:"Bench + Smith/barbell", start:"Upper back supported on an incline/bench, bar over hips, feet planted.", finish:"Drive hips upward until glutes are fully shortened, then lower under control.", cue:"Chin tucked, ribs down, push through the heels. Do not overextend the low back.", type:"bridge"},
+  "Elevated Reverse Lunges (Smith Machine)": {equipment:"Smith machine + small step", start:"Front foot stays elevated on the step under the Smith bar.", finish:"Step the other leg back and lower into a reverse lunge, then drive through the front leg to stand.", cue:"Keep pressure through the front heel/midfoot and let the front knee track naturally.", type:"reverselunge"},
+  "Cable Kickbacks": {equipment:"Low cable + ankle strap", start:"Stand tall with the strapped leg slightly forward and torso braced.", finish:"Extend that leg back from the hip without arching your low back.", cue:"Think heel back, glute squeeze, small controlled range.", type:"kickback"},
+  "Elevated Deficit KB Sumo Squat": {equipment:"Two platforms + kettlebell", start:"Wide stance on raised platforms, kettlebell hanging between the legs.", finish:"Sit down deep into the deficit, then drive through the feet to stand.", cue:"Toes turned out, knees follow toes, chest tall.", type:"sumosquat"},
+  "Cross Cable Rear Delt Fly": {equipment:"Dual cables", start:"Hold opposite cables with arms crossed in front at shoulder height.", finish:"Open the arms out and back until they line up with the torso.", cue:"Lead with elbows, keep shoulders down, avoid shrugging.", type:"fly"},
+  "DB Lateral Raises": {equipment:"Dumbbells", start:"Dumbbells by your sides, elbows softly bent.", finish:"Raise arms out to the sides to about shoulder height, then lower slowly.", cue:"Lead with elbows and keep traps relaxed.", type:"lateralraise"},
+  "Shoulder Press": {equipment:"Dumbbells or machine", start:"Hands at shoulder level, elbows slightly forward of the body.", finish:"Press overhead until arms are nearly straight, then lower to shoulder level.", cue:"Brace ribs down and avoid over-arching.", type:"press"},
+  "Cable Lateral Raise + Cable Front Raise": {equipment:"Cable", start:"Cable starts low with arm near your side.", finish:"Perform the programmed lateral raise, then front raise, each to about shoulder height.", cue:"Keep torso still and move from the shoulder.", type:"combo_raise"},
+  "Reverse Pec Deck": {equipment:"Reverse pec deck", start:"Chest against pad, arms reaching forward to handles.", finish:"Sweep arms out and back until in line with shoulders.", cue:"Keep shoulders slightly protracted and move through the rear delts.", type:"pecdeck"},
+  "High Row Cable Pull": {equipment:"High cable", start:"Arms extended toward a high cable attachment.", finish:"Pull elbows down and back toward the ribs/upper waist.", cue:"Let shoulder blades stretch forward, then drive elbows back.", type:"row"},
+  "Wide Grip Lat Pulldown": {equipment:"Lat pulldown", start:"Wide overhand grip with arms extended overhead.", finish:"Pull the bar toward the upper chest while driving elbows down.", cue:"Keep chest tall and avoid yanking with momentum.", type:"pulldown"},
+  "High Row Machine": {equipment:"High-row machine", start:"Arms extended and shoulders reaching forward.", finish:"Drive elbows back and down until handles approach the torso.", cue:"Use a full stretch, then squeeze the upper back.", type:"row"},
+  "DB or Smith Machine RDL": {equipment:"Dumbbells or Smith machine", start:"Stand tall with weight close to thighs, knees softly bent.", finish:"Push hips back until hamstrings load, then drive hips forward to stand.", cue:"Back stays flat; this is a hip hinge, not a squat.", type:"hinge"},
+  "Smith Machine Good Mornings": {equipment:"Smith machine", start:"Bar across upper back, feet set under hips, knees softly bent.", finish:"Hinge hips back with a long neutral spine, then squeeze glutes to stand.", cue:"Keep bar path vertical and stop before the low back rounds.", type:"goodmorning"},
+  "DB Walking Lunges": {equipment:"Dumbbells", start:"Stand tall holding dumbbells at your sides.", finish:"Step forward, lower both knees, push through the front foot, then step into the next rep.", cue:"Brace and keep each rep controlled.", type:"walkinglunge"},
+  "Stairmill Warm-Up": {equipment:"Stairmill", start:"Stand tall on the moving stairs with light hand support only if needed.", finish:"Step continuously at an easy warm-up pace.", cue:"Avoid leaning heavily on the handles.", type:"stairmill"},
+  "Abductors": {equipment:"Hip abductor machine", start:"Sit tall with knees/pads together or near together.", finish:"Press knees outward against the pads, pause, then return slowly.", cue:"Keep torso stable and control both directions.", type:"abductor"},
+  "Barbell KAS Bridge / Hip Thrust": {equipment:"Bench + barbell", start:"Upper back on bench, hips below the top position.", finish:"Drive hips to full glute lockout using the short KAS range, then lower only a few inches.", cue:"Stay in the top portion of the hip thrust; ribs down and chin tucked.", type:"kas"},
+  "Cable Side Kick": {equipment:"Low cable + ankle strap", start:"Stand sideways to the stack with working leg near midline.", finish:"Move the working leg out to the side without rotating the pelvis.", cue:"Stay tall and keep toes mostly forward.", type:"sidekick"},
+  "Smith Machine Reverse Frog Pumps": {equipment:"Smith machine", start:"Lie under bar with soles together and knees opened, hips flexed.", finish:"Drive hips upward by squeezing glutes, then lower under control.", cue:"Keep the frog-leg position and avoid pushing from the low back.", type:"frogpump"},
+  "Sumo Deadlifts": {equipment:"Barbell", start:"Wide stance with toes out, hands inside the knees on the bar.", finish:"Push the floor away and stand tall with hips and knees extending together.", cue:"Keep chest tall and bar close.", type:"sumodeadlift"},
+  "Planks": {equipment:"Bodyweight", start:"Forearms under shoulders, body in one straight line.", finish:"Hold the same straight-line position for the full interval.", cue:"Squeeze glutes, brace abs, and keep hips from sagging or piking.", type:"plank"},
+  "Dead Bugs": {equipment:"Bodyweight", start:"Lie on back with hips/knees at 90° and arms up.", finish:"Extend opposite arm and leg away while keeping low back gently pressed down, then switch.", cue:"Move slowly and keep the ribs down.", type:"deadbug"},
+  "Leg Lifts": {equipment:"Bodyweight", start:"Lie on back with legs straight and together.", finish:"Raise legs toward vertical, then lower only as far as you can keep the low back controlled.", cue:"Do not let the low back arch off the floor.", type:"leglift"},
+  "Hip / Low Back Mobility": {equipment:"Bodyweight", start:"Begin in a comfortable neutral position.", finish:"Move slowly through hip and low-back ranges without forcing end range.", cue:"Mobility should feel controlled, not painful.", type:"mobility"},
+  "Cable Face Pulls": {equipment:"Rope cable", start:"Rope set around face height, arms extended.", finish:"Pull rope toward face while separating the rope ends and driving elbows out.", cue:"Finish with upper back/rear delts, not a shrug.", type:"facepull"},
+  "Push-Ups": {equipment:"Bodyweight", start:"Hands just outside shoulders, body straight from head to heels.", finish:"Lower chest toward floor, then press back to the top.", cue:"Keep elbows angled slightly back and core braced.", type:"pushup"},
+  "Seated Overhead Tricep Extensions": {equipment:"Dumbbell or cable", start:"Sit tall with weight overhead and elbows pointing forward/up.", finish:"Bend elbows to lower weight behind the head, then extend elbows to return overhead.", cue:"Keep upper arms mostly still.", type:"tricep"},
+  "Preacher Curl Machine": {equipment:"Preacher curl machine", start:"Upper arms supported on the pad with elbows nearly extended.", finish:"Curl the handles toward the shoulders, then lower under control.", cue:"Keep upper arms glued to the pad and avoid bouncing.", type:"curl"}
+};
+
+function demoFigure(type){
+  const common = `<svg viewBox="0 0 360 170" class="motionSvg" role="img" aria-label="Animated exercise motion guide">
+    <defs>
+      <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="currentColor"/></marker>
+    </defs>`;
+  const end = `</svg>`;
+  const label=(a,b)=>`<text x="54" y="158" class="svgLabel">${a}</text><text x="250" y="158" class="svgLabel">${b}</text>`;
+  const human=(x,y,pose="stand")=>{
+    if(pose==="hinge") return `<g class="person"><circle cx="${x}" cy="${y-55}" r="8"/><line x1="${x}" y1="${y-47}" x2="${x+28}" y2="${y-18}"/><line x1="${x+28}" y1="${y-18}" x2="${x+45}" y2="${y+18}"/><line x1="${x+28}" y1="${y-18}" x2="${x+5}" y2="${y+18}"/><line x1="${x+13}" y1="${y-33}" x2="${x+45}" y2="${y-20}"/></g>`;
+    if(pose==="lunge") return `<g class="person"><circle cx="${x}" cy="${y-62}" r="8"/><line x1="${x}" y1="${y-54}" x2="${x}" y2="${y-20}"/><line x1="${x}" y1="${y-20}" x2="${x-25}" y2="${y+15}"/><line x1="${x}" y1="${y-20}" x2="${x+35}" y2="${y+5}"/><line x1="${x}" y1="${y-40}" x2="${x-18}" y2="${y-12}"/><line x1="${x}" y1="${y-40}" x2="${x+18}" y2="${y-12}"/></g>`;
+    if(pose==="armsup") return `<g class="person"><circle cx="${x}" cy="${y-55}" r="8"/><line x1="${x}" y1="${y-47}" x2="${x}" y2="${y-8}"/><line x1="${x}" y1="${y-8}" x2="${x-14}" y2="${y+25}"/><line x1="${x}" y1="${y-8}" x2="${x+14}" y2="${y+25}"/><line x1="${x}" y1="${y-37}" x2="${x-16}" y2="${y-65}"/><line x1="${x}" y1="${y-37}" x2="${x+16}" y2="${y-65}"/></g>`;
+    if(pose==="armsout") return `<g class="person"><circle cx="${x}" cy="${y-55}" r="8"/><line x1="${x}" y1="${y-47}" x2="${x}" y2="${y-8}"/><line x1="${x}" y1="${y-8}" x2="${x-14}" y2="${y+25}"/><line x1="${x}" y1="${y-8}" x2="${x+14}" y2="${y+25}"/><line x1="${x}" y1="${y-36}" x2="${x-35}" y2="${y-36}"/><line x1="${x}" y1="${y-36}" x2="${x+35}" y2="${y-36}"/></g>`;
+    return `<g class="person"><circle cx="${x}" cy="${y-55}" r="8"/><line x1="${x}" y1="${y-47}" x2="${x}" y2="${y-8}"/><line x1="${x}" y1="${y-8}" x2="${x-14}" y2="${y+25}"/><line x1="${x}" y1="${y-8}" x2="${x+14}" y2="${y+25}"/><line x1="${x}" y1="${y-36}" x2="${x-18}" y2="${y-10}"/><line x1="${x}" y1="${y-36}" x2="${x+18}" y2="${y-10}"/></g>`;
+  };
+  if(["hinge","goodmorning","sumodeadlift"].includes(type)) return common+human(70,105,"stand")+human(270,105,"hinge")+`<path class="motionArrow" d="M135 70 Q180 35 225 70" marker-end="url(#arrow)"/>`+label("START","HINGE")+end;
+  if(["reverselunge","walkinglunge","stepdown"].includes(type)) return common+human(70,105,"stand")+human(270,105,"lunge")+`<path class="motionArrow" d="M135 82 Q180 120 225 82" marker-end="url(#arrow)"/>`+label("START","LOWER")+end;
+  if(["lateralraise","fly","pecdeck"].includes(type)) return common+human(70,105,"stand")+human(270,105,"armsout")+`<path class="motionArrow" d="M135 78 Q180 45 225 78" marker-end="url(#arrow)"/>`+label("START","OPEN/RAISE")+end;
+  if(["press","combo_raise","facepull"].includes(type)) return common+human(70,105,"armsout")+human(270,105,"armsup")+`<path class="motionArrow" d="M135 90 Q180 45 225 65" marker-end="url(#arrow)"/>`+label("START","FINISH")+end;
+  return common+human(70,105,"stand")+human(270,105,"stand")+`<path class="motionArrow pulse" d="M135 85 L225 85" marker-end="url(#arrow)"/>`+label("START","FINISH")+end;
+}
+
 function openDemo(day,i){
   const e=DATA.workouts[day].exercises[i];
+  const g=DEMO_GUIDES[e.name]||{equipment:"Programmed equipment",start:"Set up exactly as written in your program.",finish:"Move through the programmed range under control.",cue:e.notes||"Use controlled form.",type:"default"};
   $("#demoTitle").textContent=e.name;
-  if(e.video){
-    $("#demoContent").innerHTML=`<div class="videoWrap"><video src="${e.video}" controls playsinline loop preload="metadata"></video></div><div class="credit">${e.videoLabel||"Movement example"} · Specialized variations may differ from the exact exercise in your program.</div>`;
-  } else {
-    $("#demoContent").innerHTML=`<div class="noDemo"><b>Exact demo coming soon.</b><br><br>I removed the generic placeholder so you are not shown the wrong movement.<br><br><b>Form cues:</b><br>${e.notes||"Follow your programmed setup and controlled form for this movement."}</div>`;
-  }
+  const videoBlock=e.video?`<div class="videoWrap"><video src="${e.video}" controls playsinline loop preload="metadata"></video></div>`:"";
+  $("#demoContent").innerHTML=`${videoBlock}
+    <div class="motionGuide">
+      <div class="guideBadge">${e.video?"VIDEO + MOTION GUIDE":"IN-APP MOTION GUIDE"}</div>
+      ${demoFigure(g.type)}
+      <div class="guideGrid">
+        <div><span>Equipment</span><b>${g.equipment}</b></div>
+        <div><span>Start</span><b>${g.start}</b></div>
+        <div><span>Move</span><b>${g.finish}</b></div>
+        <div><span>Key cue</span><b>${g.cue}</b></div>
+      </div>
+      <div class="credit">This guide is matched to the exact exercise name in your program. Use your coach’s setup if it differs.</div>
+    </div>`;
   $("#demoModal").classList.add("on");$("#demoModal").setAttribute("aria-hidden","false");
 }
 function closeDemo(){const v=$("#demoModal video");if(v)v.pause();$("#demoModal").classList.remove("on");$("#demoModal").setAttribute("aria-hidden","true")}
@@ -87,7 +151,7 @@ function renderToday(){
   const isToday=dateKey===localKey(now);
   let h=`<div class="dateNav"><button id="prevDay">‹</button><input id="workoutDate" type="date" value="${dateKey}"><button id="nextDay">›</button></div><div class="card hero"><div class="eyebrow">${dayName}${isToday?" • TODAY":""}</div><h2>${w.title}</h2><div class="muted">${selectedDate.toLocaleDateString(undefined,{month:"long",day:"numeric",year:"numeric"})}</div><div class="muted">${items.length?`${done} of ${total} sets complete`:"Recovery day"}</div>${items.length?`<div class="progress"><div class="bar" style="width:${Math.round(done/total*100)}%"></div></div>`:""}</div>`;
   if(!items.length)h+=`<div class="card rest"><div class="emoji">☁️</div><h2>Rest + recover</h2><div class="muted">You can still log weight, steps, cardio, water and notes for this date in Progress.</div></div>`;
-  items.forEach((e,i)=>{const x=getEx(dayName,i,dateKey);h+=`<section class="card exercise"><div class="exerciseHead"><div class="eyebrow">Exercise ${i+1}</div><h3>${e.name}</h3><div class="protocol">${e.protocol}</div>${e.notes?`<div class="notes">${e.notes}</div>`:""}</div><div class="demoStrip"><span>${e.video?"Accurate demo inside the app":"Exact demo coming soon · form cues available"}</span><button class="demoBtn" data-demo="${dayName}|${i}">${e.video?"▶ Accurate Demo":"View Form Cues"}</button></div><div class="sets">`;for(let s=0;s<e.sets;s++){const v=x.sets[s]||{};h+=`<div class="setrow"><div class="setnum">SET ${s+1}</div><input inputmode="decimal" placeholder="Weight" value="${v.weight||""}" data-day="${dayName}" data-date="${dateKey}" data-i="${i}" data-s="${s}" data-f="weight"><input placeholder="Reps" value="${v.reps||""}" data-day="${dayName}" data-date="${dateKey}" data-i="${i}" data-s="${s}" data-f="reps"><button class="check ${v.done?"on":""}" data-done="${dayName}|${dateKey}|${i}|${s}">✓</button></div>`}h+=`</div></section>`});
+  items.forEach((e,i)=>{const x=getEx(dayName,i,dateKey);h+=`<section class="card exercise"><div class="exerciseHead"><div class="eyebrow">Exercise ${i+1}</div><h3>${e.name}</h3><div class="protocol">${e.protocol}</div>${e.notes?`<div class="notes">${e.notes}</div>`:""}</div><div class="demoStrip"><span>${e.video?"Video + exact motion guide":"Exact in-app motion guide"}</span><button class="demoBtn" data-demo="${dayName}|${i}">▶ Demo</button></div><div class="sets">`;for(let s=0;s<e.sets;s++){const v=x.sets[s]||{};h+=`<div class="setrow"><div class="setnum">SET ${s+1}</div><input inputmode="decimal" placeholder="Weight" value="${v.weight||""}" data-day="${dayName}" data-date="${dateKey}" data-i="${i}" data-s="${s}" data-f="weight"><input placeholder="Reps" value="${v.reps||""}" data-day="${dayName}" data-date="${dateKey}" data-i="${i}" data-s="${s}" data-f="reps"><button class="check ${v.done?"on":""}" data-done="${dayName}|${dateKey}|${i}|${s}">✓</button></div>`}h+=`</div></section>`});
   $("#view").innerHTML=h;
   $("#prevDay").onclick=()=>changeSelectedDate(-1);$("#nextDay").onclick=()=>changeSelectedDate(1);$("#workoutDate").onchange=e=>{selectedDate=new Date(e.target.value+"T12:00:00");refreshHeaderDate();renderToday()};
   document.querySelectorAll("[data-demo]").forEach(b=>b.onclick=()=>{const[d,i]=b.dataset.demo.split("|");openDemo(d,+i)});
